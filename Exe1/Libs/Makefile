@@ -18,4 +18,4 @@ dictionary_dynamic: dictionary.c
 	$(CC) -shared -o $(LIB_NAME).so dictionary.o
 
 clean:
-	rm -f dictionary.o $(LIB_NAME).a $(LIB_NAME).so
+	rm -f dictionary.o $(LIB_NAME).a $(LIB_NAME).so mainStatic mainDinamic

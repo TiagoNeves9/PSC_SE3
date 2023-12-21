@@ -12,15 +12,22 @@ int main(int argc, char *argv[]) {
     const char *word_to_lookup = argv[2];
 
     Dictionary *dict = dictionary_create();
-    dictionary_add(dict, dictionary_file);
+	if (dict == NULL) {
+		fprintf(stderr, "Erro ao criar o dicionário\n");
+		return EXIT_FAILURE;
+	}
+	
+	dictionary_add(dict, dictionary_file);
+   
+	if (dictionary_lookup(dict, word_to_lookup)) {
+		printf("A palavra está no dicionário.\n");
+	} else {
+		fprintf(stderr, "Erro ao adicionar palavras ao dicionário.\n");
+		dictionary_destroy(dict);
+		return EXIT_FAILURE;
+	}
 
-    if (dictionary_lookup(dict, word_to_lookup)) {
-        printf("A palavra está no dicionário.\n");
-    } else {
-        printf("A palavra não está no dicionário.\n");
-    }
-
-    dictionary_destroy(dict);
+	dictionary_destroy(dict);
 
     return EXIT_SUCCESS;
 }
