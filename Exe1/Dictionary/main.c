@@ -20,12 +20,10 @@ int main(int argc, char *argv[]) {
 	dictionary_add(dict, dictionary_file);
    
 	if (dictionary_lookup(dict, word_to_lookup)) {
-		printf("A palavra está no dicionário.\n");
-	} else {
-		fprintf(stderr, "Erro ao adicionar palavras ao dicionário.\n");
-		dictionary_destroy(dict);
-		return EXIT_FAILURE;
-	}
+        printf("A palavra está no dicionário.\n");
+    } else {
+        printf("A palavra não está no dicionário.\n");
+    }
 
 	dictionary_destroy(dict);
 

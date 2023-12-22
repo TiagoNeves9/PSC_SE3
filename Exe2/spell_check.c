@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "dictionary.h"
+#include <getopt.h>
+#include <glib.h>
 
 #define MAX_WORD_LENGTH 100
 #define MAX_DICTIONARY_WORDS 1000
@@ -19,18 +22,7 @@ typedef struct {
     int coordinates_count;
 } WordInfo;
 
-// Função para verificar se uma palavra está no dicionário
-int isInDictionary(char *word, char *dictionary[], int dictionary_size) {
-    for (int i = 0; i < dictionary_size; i++) {
-        if (strcmp(word, dictionary[i]) == 0) {
-            return 1; // Encontrou a palavra no dicionário
-        }
-    }
-    return 0; // A palavra não está no dicionário
-}
-
-// Função para verificar o texto e imprimir palavras não encontradas
-void spellCheckText(char *filename, char *dictionary[], int dictionary_size) {
+void spellCheckText(char *filename, Dictionary *dict_array[], int dictionary_size) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Erro ao abrir o arquivo");
@@ -48,18 +40,19 @@ void spellCheckText(char *filename, char *dictionary[], int dictionary_size) {
         if (len > 0 && (buffer[len - 1] == '.' || buffer[len - 1] == ',')) {
             buffer[len - 1] = '\0';
         }
+		for(int i = 0; i < dictionary_size; i++){
+			if (!dictionary_lookup(dict_array[i],buffer)) {
+				// A palavra não está no dicionário, armazenar informações
+				strcpy(words[words_count].word, buffer);
+				words[words_count].coordinates[words[words_count].coordinates_count].line = line_count;
+				words[words_count].coordinates[words[words_count].coordinates_count].column = ftell(file) - strlen(buffer) - 1;
+				words[words_count].coordinates_count++;
+				words_count++;
+			}
 
-        if (!isInDictionary(buffer, dictionary, dictionary_size)) {
-            // A palavra não está no dicionário, armazenar informações
-            strcpy(words[words_count].word, buffer);
-            words[words_count].coordinates[words[words_count].coordinates_count].line = line_count;
-            words[words_count].coordinates[words[words_count].coordinates_count].column = ftell(file) - strlen(buffer) - 1;
-            words[words_count].coordinates_count++;
-            words_count++;
-        }
-
-        if (buffer[len - 1] == '\n') {
-            line_count++;
+			if (buffer[len - 1] == '\n') {
+				line_count++;
+			}
         }
     }
 
@@ -76,60 +69,80 @@ void spellCheckText(char *filename, char *dictionary[], int dictionary_size) {
     }
 }
 
-int main(int argc, char *argv[]) {
-    char *filename = NULL;
+
+
+int main(int argc, char *argv[]){
+	
+	int spell_check = 0;
+    char *dicionarios[10]; // Um array para armazenar os nomes dos dicionários
+    char *text = NULL;
     char *word = NULL;
-    char *dictionary[MAX_DICTIONARY_WORDS];
-    int dictionary_size = 0;
-
-    // Processar argumentos de linha de comando
-    for (int i = 1; i < argc; i += 2) {
-        if (strcmp(argv[i], "-t") == 0) {
-            filename = argv[i + 1];
-        } else if (strcmp(argv[i], "-w") == 0) {
-            word = argv[i + 1];
-        } else if (strcmp(argv[i], "-d") == 0) {
-            // Adicionar arquivo ao dicionário
-            FILE *dict_file = fopen(argv[i + 1], "r");
-            if (dict_file == NULL) {
-                perror("Erro ao abrir o arquivo do dicionário");
+    Dictionary *dict_arr[10];
+    
+    int opt;
+    while((opt = getopt(argc, argv, "d:t:w:")) != -1){
+		switch(opt){
+			case 'd':
+				dicionarios[spell_check] = optarg;
+				spell_check++;
+				break;
+			case 't':
+				text = optarg;
+				break;
+			case 'w':
+				word = optarg;
+				break;
+			default:
+				fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 -t arquivo OU -w palavra isolada\n", argv[0]);
                 exit(EXIT_FAILURE);
-            }
-
-            char dict_word[MAX_WORD_LENGTH];
-            while (fscanf(dict_file, "%s", dict_word) == 1) {
-                dictionary[dictionary_size] = malloc(strlen(dict_word) + 1);
-                strcpy(dictionary[dictionary_size], dict_word);
-                dictionary_size++;
-            }
-
-            fclose(dict_file);
-        }
-    }
-
-    // Verificar se as opções estão corretas
-    if ((filename == NULL && word == NULL) || (filename != NULL && word != NULL)) {
-        fprintf(stderr, "Opções inválidas. Use -t OU -w.\n");
+       }         
+	}
+	
+	if( (text != NULL && word != NULL) || (text == NULL && word == NULL)){
+		fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 -t arquivo OU -w palavra isolada\n", argv[0]);
         exit(EXIT_FAILURE);
-    }
+    }    
+	
+	if (spell_check > 0) {
+        printf("Ativando verificação ortográfica...\n");
+        
+        for (int i = 0; i < spell_check; i++) {
+            printf("Usando o dicionário: %s\n", dicionarios[i]);
+            dict_arr[i] = dictionary_create();
+			if (dict_arr[i] == NULL) {
+			fprintf(stderr, "Erro ao criar o dicionário\n");
 
-    // Executar verificação ortográfica
-    if (filename != NULL) {
-        spellCheckText(filename, dictionary, dictionary_size);
-    } else {
-        // Verificar palavra isolada
-        if (!isInDictionary(word, dictionary, dictionary_size)) {
-            printf("Palavra não encontrada: %s\n", word);
-        } else {
-            printf("Palavra encontrada no dicionário: %s\n", word);
+            // Libertar os dicionários previamente criados em caso de erro
+            for (int j = 0; j < i; j++) {
+                dictionary_destroy(dict_arr[j]);
+            }
+            return EXIT_FAILURE;
+        }
+			dictionary_add(dict_arr[i], dicionarios[i]);
         }
     }
-
-    // Liberar memória alocada para o dicionário
-    for (int i = 0; i < dictionary_size; i++) {
-        free(dictionary[i]);
+    
+    if (text != NULL) {
+        printf("Processando o arquivo de texto: %s...\n", text);
+        spellCheckText(text,dict_arr,spell_check);
+        
     }
-
-    return 0;
+    
+    if(word != NULL){
+		printf("Processando a palavra: %s...\n", word);
+		for(int z=0; z < spell_check; z++){
+			if(dictionary_lookup(dict_arr[z],word)){
+				printf("A palavra está no dicionário.\n");
+			} else {
+				printf("A palavra não está no dicionário.\n");	
+			}
+		} 
+	}	
+	
+	printf("A libertar os dicionários...\n");
+	for(int k=0; k < spell_check; k++){
+		dictionary_destroy(dict_arr[k]);
+	}
+	
+	return 1;
 }
-
