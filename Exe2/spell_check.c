@@ -21,7 +21,7 @@ typedef struct {
     Coordinates coordinates[MAX_FILE_LINES];
     int coordinates_count;
 } WordInfo;
-
+													//TODO: Coordenadas erradas
 void spellCheckText(char *filename, Dictionary *dict_array[], int dictionary_size) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -40,19 +40,29 @@ void spellCheckText(char *filename, Dictionary *dict_array[], int dictionary_siz
         if (len > 0 && (buffer[len - 1] == '.' || buffer[len - 1] == ',')) {
             buffer[len - 1] = '\0';
         }
-		for(int i = 0; i < dictionary_size; i++){
-			if (!dictionary_lookup(dict_array[i],buffer)) {
-				// A palavra não está no dicionário, armazenar informações
-				strcpy(words[words_count].word, buffer);
-				words[words_count].coordinates[words[words_count].coordinates_count].line = line_count;
-				words[words_count].coordinates[words[words_count].coordinates_count].column = ftell(file) - strlen(buffer) - 1;
-				words[words_count].coordinates_count++;
-				words_count++;
-			}
+        
+        long int word_start_position = ftell(file) - len;
 
-			if (buffer[len - 1] == '\n') {
-				line_count++;
-			}
+        int found_in_any_dictionary = 0; // Flag para verificar se a palavra foi encontrada em algum dicionário
+
+        for (int i = 0; i < dictionary_size; i++) {
+            if (dictionary_lookup(dict_array[i], buffer)) {
+                found_in_any_dictionary = 1;
+                break; // Se encontrou em algum dicionário, não precisa verificar os outros
+            }
+        }
+
+        if (!found_in_any_dictionary) {
+            // A palavra não está em nenhum dos dicionários, armazenar informações
+            strcpy(words[words_count].word, buffer);
+            words[words_count].coordinates[words[words_count].coordinates_count].line = line_count;
+            words[words_count].coordinates[words[words_count].coordinates_count].column = word_start_position;
+            words[words_count].coordinates_count++;
+            words_count++;
+        }
+
+        if (strchr(buffer, '\n') != NULL) {
+            line_count++;
         }
     }
 
@@ -68,6 +78,7 @@ void spellCheckText(char *filename, Dictionary *dict_array[], int dictionary_siz
         printf("\n\n");
     }
 }
+
 
 
 
@@ -93,13 +104,13 @@ int main(int argc, char *argv[]){
 				word = optarg;
 				break;
 			default:
-				fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 -t arquivo OU -w palavra isolada\n", argv[0]);
+				fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 (etc) -t arquivo OU -w palavra isolada\n", argv[0]);
                 exit(EXIT_FAILURE);
        }         
 	}
 	
 	if( (text != NULL && word != NULL) || (text == NULL && word == NULL)){
-		fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 -t arquivo OU -w palavra isolada\n", argv[0]);
+		fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 (etc) -t arquivo OU -w palavra isolada\n", argv[0]);
         exit(EXIT_FAILURE);
     }    
 	
@@ -120,7 +131,10 @@ int main(int argc, char *argv[]){
         }
 			dictionary_add(dict_arr[i], dicionarios[i]);
         }
-    }
+    } else {
+		fprintf(stderr, "Uso: %s -d dicionario1 -d dicionario2 (etc) -t arquivo OU -w palavra isolada\n", argv[0]);
+        exit(EXIT_FAILURE);
+	}
     
     if (text != NULL) {
         printf("Processando o arquivo de texto: %s...\n", text);
@@ -132,9 +146,9 @@ int main(int argc, char *argv[]){
 		printf("Processando a palavra: %s...\n", word);
 		for(int z=0; z < spell_check; z++){
 			if(dictionary_lookup(dict_arr[z],word)){
-				printf("A palavra está no dicionário.\n");
+				printf("A palavra está no dicionário %s .\n", dicionarios[z]);
 			} else {
-				printf("A palavra não está no dicionário.\n");	
+				printf("A palavra não está no dicionário %s .\n", dicionarios[z]);	
 			}
 		} 
 	}	

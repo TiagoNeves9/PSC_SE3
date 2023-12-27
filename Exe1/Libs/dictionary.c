@@ -4,6 +4,9 @@
 #include "dictionary.h"
 
 
+void free_key(gpointer key) {
+    g_free(key);
+}
 
 Dictionary *dictionary_create() {
     Dictionary *dict = (Dictionary *)malloc(sizeof(Dictionary));
@@ -11,10 +14,9 @@ Dictionary *dictionary_create() {
         fprintf(stderr, "Erro ao alocar memória para o dicionário\n");
         exit(EXIT_FAILURE);  // ou outra ação apropriada
     }
-    dict->hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+    dict->hash_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_key,NULL);
     return dict;
 }
-
 
 void dictionary_add(Dictionary *dictionary, const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -25,17 +27,13 @@ void dictionary_add(Dictionary *dictionary, const char *filename) {
     }
 
     char word[100];
-    while (fscanf(file, "%99s", word) == 1) {  
+    while (fscanf(file, "%99s", word) == 1) {
         g_hash_table_insert(dictionary->hash_table, g_strdup(word), NULL);
     }
-	
-	
+
     if (fclose(file) != 0) {
         fprintf(stderr, "Erro ao fechar o arquivo %s\n", filename);
-        // Tratar erro de fechamento do arquivo, se necessário
     }
-    
-    
 }
 
 
